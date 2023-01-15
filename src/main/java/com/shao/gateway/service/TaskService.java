@@ -63,7 +63,7 @@ public class TaskService {
         Task task = new Task(anInterface.getId(), "Running", url, headers, body, new Timestamp(System.currentTimeMillis()));
         final Task savedTask = taskRepository.save(task);
 
-        // TODO 这里如果在子线程中获取，则可能由于当前线程被销毁，而导致程序运行失败
+        // 这里如果在子线程中获取，则可能由于当前线程被销毁，而导致程序运行失败
         HttpHeaders httpHeaders = new HttpHeaders();
         System.out.println("122");
         request.getHeaderNames().asIterator().forEachRemaining(headerName -> {
@@ -78,9 +78,10 @@ public class TaskService {
                 // 向http://localhost:8080/synchronous-task/submit发起HTTP请求
                 RestTemplate restTemplate = new RestTemplate();
                 // TODO 考虑异常情况
-                ResponseEntity<String> responseEntity = restTemplate.postForEntity(anInterface.getRunUrl() + "?taskId=" + savedTask.getId(), httpEntity, String.class);
-                savedTask.setStatus("Success");
-                savedTask.setResult(responseEntity.getBody());
+                ResponseEntity<RawResponseEntity> responseEntity = restTemplate.postForEntity(anInterface.getRunUrl() + "?taskId=" + savedTask.getId(), httpEntity, RawResponseEntity.class);
+                RawResponseEntity rawResponseEntity = responseEntity.getBody();
+                savedTask.setStatus(rawResponseEntity.getStatus());
+                savedTask.setResult(rawResponseEntity.getData());
                 savedTask.setEndTime(new Timestamp(System.currentTimeMillis()));
                 taskRepository.save(savedTask);
             }));
