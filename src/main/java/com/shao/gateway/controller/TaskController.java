@@ -30,4 +30,9 @@ public class TaskController {
         return taskService.check(taskId);
     }
 
+    @PostMapping(value = "mark-as-success")
+    public MyResponseEntity markAsSuccess(@RequestParam("taskId") int taskId, HttpServletRequest request) throws IOException {
+        return taskService.markAsSuccess(taskId, request);
+    }
+
 }

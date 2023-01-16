@@ -1,6 +1,5 @@
 package com.shao.gateway.service;
 
-import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.shao.gateway.entity.Interface;
 import com.shao.gateway.entity.RawResponseEntity;
 import com.shao.gateway.entity.MyResponseEntity;
@@ -19,7 +18,6 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.Enumeration;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
@@ -200,4 +198,23 @@ public class TaskService {
         return new MyResponseEntity(200, task.getStatus(), task.getResult());
     }
 
+    public MyResponseEntity markAsSuccess(int taskId, HttpServletRequest request) throws IOException {
+        Task task = taskRepository.findById(taskId).orElse(null);
+        if (task == null) {
+            return new MyResponseEntity(404, "Task not found", null);
+        }
+        if (!task.getStatus().equals("Running")) {
+            return new MyResponseEntity(400, "Task is not running", null);
+        }
+        Optional<Interface> anInterface = interfaceRepository.findInterfaceById(task.getInterfaceId());
+        if (anInterface.isEmpty()) {
+            return new MyResponseEntity(404, "Interface not found", null);
+        }
+        task.setStatus("Success");
+        task.setEndTime(new Timestamp(System.currentTimeMillis()));
+        task.setResult(extractBody(request));
+        taskRepository.save(task);
+        interfaceRepository.decreaseCurThreads(anInterface.get().getId());
+        return new MyResponseEntity(200, "Success to mark task " + taskId + " as success", null);
+    }
 }
