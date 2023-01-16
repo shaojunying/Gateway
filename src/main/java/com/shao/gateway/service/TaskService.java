@@ -48,13 +48,11 @@ public class TaskService {
             return new MyResponseEntity(404, "interface not found", null);
         }
 
-        // 是否超过了最大并发数
-        // TODO 这里应该++curThreads
-        if (anInterface.getMaxThreads() <= anInterface.getCurThreads()) {
+        if (interfaceRepository.increaseCurThreads(anInterface.getId()) == 0) {
+            // 请求数量超过最大值
             return new MyResponseEntity(403, "too many requests", null);
         }
 
-        // TODO cookie
         String url = extractUrl(request);
         String headers = extractHeaders(request);
         String body = extractBody(request);
@@ -84,6 +82,8 @@ public class TaskService {
                 savedTask.setResult(rawResponseEntity.getData());
                 savedTask.setEndTime(new Timestamp(System.currentTimeMillis()));
                 taskRepository.save(savedTask);
+
+                interfaceRepository.decreaseCurThreads(anInterface.getId());
             }));
         }else {
             // 异步接口
@@ -151,6 +151,7 @@ public class TaskService {
             task.setResult(rawResponseEntity.getData());
             task.setEndTime(new Timestamp(System.currentTimeMillis()));
             taskRepository.save(task);
+            interfaceRepository.decreaseCurThreads(anInterface.get().getId());
             return new MyResponseEntity(200, "Success", task.getResult());
         }
         if (Objects.equals(rawResponseEntity.getStatus(), "Failed")) {
@@ -158,6 +159,7 @@ public class TaskService {
             task.setResult(rawResponseEntity.getData());
             task.setEndTime(new Timestamp(System.currentTimeMillis()));
             taskRepository.save(task);
+            interfaceRepository.decreaseCurThreads(anInterface.get().getId());
             return new MyResponseEntity(500, "Failed", task.getResult());
         }
         return new MyResponseEntity(201, "Running", null);
