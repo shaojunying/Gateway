@@ -17,6 +17,7 @@ public class Interface {
     private String submitUrl;
     private String checkUrl;
     private String runUrl;
+    private int timeout;
 
     public Interface() {
     }
@@ -83,5 +84,13 @@ public class Interface {
 
     public void setRunUrl(String runUrl) {
         this.runUrl = runUrl;
+    }
+
+    public int getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(int timeout) {
+        this.timeout = timeout;
     }
 }
