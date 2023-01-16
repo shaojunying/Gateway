@@ -2,23 +2,23 @@ package com.shao.gateway.entity;
 
 public class MyResponseEntity {
     private int code;
-    private String status;
+    private String message;
     private String data;
 
     public MyResponseEntity() {
     }
 
-    public MyResponseEntity(int code, String status, String data) {
+    public MyResponseEntity(int code, String message, String data) {
         this.code = code;
-        this.status = status;
+        this.message = message;
         this.data = data;
     }
 
     public int getCode() {
         return code;
     }
-    public String getStatus() {
-        return status;
+    public String getMessage() {
+        return message;
     }
 
     public String getData() {

@@ -20,8 +20,8 @@ class TaskControllerTest {
         String url = "http://localhost:8080/task/submit?interfaceName=a1";
         MyResponseEntity myResponseEntity = restTemplate.postForObject(url, null, MyResponseEntity.class);
         assertNotNull(myResponseEntity);
-        assertEquals(201, myResponseEntity.getCode());
-        assertEquals("Running", myResponseEntity.getStatus());
+        assertEquals(200, myResponseEntity.getCode());
+        assertEquals("Running", myResponseEntity.getMessage());
         assertNotNull(myResponseEntity.getData());
         String data = myResponseEntity.getData();
         JSONObject jsonObject = new JSONObject(data);
@@ -34,8 +34,8 @@ class TaskControllerTest {
         assertNotNull(responseEntity);
         System.out.println("responseEntity = " + responseEntity);
         assertEquals(200, responseEntity.getCode());
-        assertEquals("Success", responseEntity.getStatus());
-        assertNull(responseEntity.getData());
+        assertEquals("Success", responseEntity.getMessage());
+        assertEquals("{ \"status\": \"Success\" }", responseEntity.getData());
     }
 
     /**
@@ -47,8 +47,8 @@ class TaskControllerTest {
         String url = "http://localhost:8080/task/submit?interfaceName=a2";
         MyResponseEntity myResponseEntity = restTemplate.postForObject(url, null, MyResponseEntity.class);
         assertNotNull(myResponseEntity);
-        assertEquals(201, myResponseEntity.getCode());
-        assertEquals("Running", myResponseEntity.getStatus());
+        assertEquals(200, myResponseEntity.getCode());
+        assertEquals("Running", myResponseEntity.getMessage());
         assertNotNull(myResponseEntity.getData());
         String data = myResponseEntity.getData();
         JSONObject jsonObject = new JSONObject(data);
@@ -61,8 +61,8 @@ class TaskControllerTest {
         assertNotNull(responseEntity);
         System.out.println("responseEntity = " + responseEntity);
         assertEquals(500, responseEntity.getCode());
-        assertEquals("Failed", responseEntity.getStatus());
-        assertNull(responseEntity.getData());
+        assertEquals("Failed to run task " + taskId, responseEntity.getMessage());
+        assertEquals("{ \"status\": \"Failed\" }", responseEntity.getData());
     }
 
 
@@ -75,8 +75,8 @@ class TaskControllerTest {
         String url = "http://localhost:8080/task/submit?interfaceName=b1";
         MyResponseEntity myResponseEntity = restTemplate.postForObject(url, null, MyResponseEntity.class);
         assertNotNull(myResponseEntity);
-        assertEquals(201, myResponseEntity.getCode());
-        assertEquals("Running", myResponseEntity.getStatus());
+        assertEquals(200, myResponseEntity.getCode());
+        assertEquals("Running", myResponseEntity.getMessage());
         assertNotNull(myResponseEntity.getData());
         String data = myResponseEntity.getData();
         JSONObject jsonObject = new JSONObject(data);
@@ -89,8 +89,8 @@ class TaskControllerTest {
         assertNotNull(responseEntity);
         System.out.println("responseEntity = " + responseEntity);
         assertEquals(200, responseEntity.getCode());
-        assertEquals("Success", responseEntity.getStatus());
-        assertNull(responseEntity.getData());
+        assertEquals("Success to run task " + taskId, responseEntity.getMessage());
+        assertEquals("{ \"status\": \"Success\" }", responseEntity.getData());
     }
 
     /**
@@ -102,8 +102,8 @@ class TaskControllerTest {
         String url = "http://localhost:8080/task/submit?interfaceName=b2";
         MyResponseEntity myResponseEntity = restTemplate.postForObject(url, null, MyResponseEntity.class);
         assertNotNull(myResponseEntity);
-        assertEquals(201, myResponseEntity.getCode());
-        assertEquals("Running", myResponseEntity.getStatus());
+        assertEquals(200, myResponseEntity.getCode());
+        assertEquals("Running", myResponseEntity.getMessage());
         assertNotNull(myResponseEntity.getData());
         String data = myResponseEntity.getData();
         JSONObject jsonObject = new JSONObject(data);
@@ -116,7 +116,7 @@ class TaskControllerTest {
         assertNotNull(responseEntity);
         System.out.println("responseEntity = " + responseEntity);
         assertEquals(500, responseEntity.getCode());
-        assertEquals("Failed", responseEntity.getStatus());
+        assertEquals("Failed to run task " + taskId, responseEntity.getMessage());
         assertNull(responseEntity.getData());
     }
 }

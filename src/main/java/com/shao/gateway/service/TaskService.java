@@ -1,5 +1,6 @@
 package com.shao.gateway.service;
 
+import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.shao.gateway.entity.Interface;
 import com.shao.gateway.entity.RawResponseEntity;
 import com.shao.gateway.entity.MyResponseEntity;
@@ -7,11 +8,13 @@ import com.shao.gateway.entity.Task;
 import com.shao.gateway.repository.InterfaceRepository;
 import com.shao.gateway.repository.TaskRepository;
 import jakarta.servlet.http.HttpServletRequest;
+import org.json.JSONException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -45,12 +48,12 @@ public class TaskService {
     public MyResponseEntity submit(HttpServletRequest request, String interfaceName) throws IOException {
         Interface anInterface = interfaceRepository.findInterfaceByName(interfaceName).orElse(null);
         if (anInterface == null) {
-            return new MyResponseEntity(404, "interface not found", null);
+            return new MyResponseEntity(404, "Interface " + interfaceName + " not found", null);
         }
 
         if (interfaceRepository.increaseCurThreads(anInterface.getId()) == 0) {
             // 请求数量超过最大值
-            return new MyResponseEntity(403, "too many requests", null);
+            return new MyResponseEntity(403, "Interface " + interfaceName + " is busy", null);
         }
 
         String url = extractUrl(request);
@@ -63,9 +66,7 @@ public class TaskService {
 
         // 这里如果在子线程中获取，则可能由于当前线程被销毁，而导致程序运行失败
         HttpHeaders httpHeaders = new HttpHeaders();
-        System.out.println("122");
         request.getHeaderNames().asIterator().forEachRemaining(headerName -> {
-            System.out.println("headerName: " + headerName);
             httpHeaders.add(headerName, request.getHeader(headerName));
         });
         HttpEntity<String> httpEntity = new HttpEntity<>(body, httpHeaders);
@@ -78,20 +79,34 @@ public class TaskService {
                 // TODO 考虑异常情况
                 ResponseEntity<RawResponseEntity> responseEntity = restTemplate.postForEntity(anInterface.getRunUrl() + "?taskId=" + savedTask.getId(), httpEntity, RawResponseEntity.class);
                 RawResponseEntity rawResponseEntity = responseEntity.getBody();
-                savedTask.setStatus(rawResponseEntity.getStatus());
+                if (rawResponseEntity.getCode() != 200) {
+                    // 服务端错误
+                    savedTask.setStatus("Failed");
+                    savedTask.setEndTime(new Timestamp(System.currentTimeMillis()));
+                    taskRepository.save(savedTask);
+                    interfaceRepository.decreaseCurThreads(anInterface.getId());
+                    return;
+                }
+                // 任务被正常执行了
                 savedTask.setResult(rawResponseEntity.getData());
                 savedTask.setEndTime(new Timestamp(System.currentTimeMillis()));
+                try {
+                    JSONObject jsonObject = new JSONObject(rawResponseEntity.getData());
+                    savedTask.setStatus(jsonObject.getString("status"));
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
                 taskRepository.save(savedTask);
 
                 interfaceRepository.decreaseCurThreads(anInterface.getId());
             }));
-        }else {
+        } else {
             // 异步接口
             RestTemplate restTemplate = new RestTemplate();
             // TODO 考虑异常情况
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(anInterface.getSubmitUrl() + "?taskId=" + savedTask.getId(), httpEntity, String.class);
         }
-        return new MyResponseEntity(201, "Running", "{taskId: " + savedTask.getId() + "}");
+        return new MyResponseEntity(200, "Running", "{taskId: " + savedTask.getId() + "}");
     }
 
 
@@ -126,16 +141,16 @@ public class TaskService {
 
         // 如果成功或失败则直接返回
         if (task.getStatus().equals("Success")) {
-            return new MyResponseEntity(200, "Success", task.getResult());
+            return new MyResponseEntity(200, "Success to run task " + taskId, task.getResult());
         }
 
         if (task.getStatus().equals("Failed")) {
-            return new MyResponseEntity(500, "Failed", task.getResult());
+            return new MyResponseEntity(500, "Failed to run task " + taskId, task.getResult());
         }
 
         // 处于running状态，并且是异步接口 （同步接口继续等待即可）
         if (anInterface.get().isSynchronous()) {
-            return new MyResponseEntity(201, "Running", null);
+            return new MyResponseEntity(200, "Task " + taskId + " is running", null);
         }
 
         // 处于running状态，并且是异步接口
@@ -144,25 +159,29 @@ public class TaskService {
         ResponseEntity<RawResponseEntity> responseEntity = restTemplate.getForEntity(anInterface.get().getCheckUrl() + "?taskId=" + task.getId(), RawResponseEntity.class);
         RawResponseEntity rawResponseEntity = responseEntity.getBody();
         if (rawResponseEntity == null) {
-            return new MyResponseEntity(500, "Failed", null);
+            return new MyResponseEntity(500, "Failed to run task " + taskId, null);
         }
-        if (Objects.equals(rawResponseEntity.getStatus(), "Success")) {
-            task.setStatus("Success");
-            task.setResult(rawResponseEntity.getData());
-            task.setEndTime(new Timestamp(System.currentTimeMillis()));
-            taskRepository.save(task);
-            interfaceRepository.decreaseCurThreads(anInterface.get().getId());
-            return new MyResponseEntity(200, "Success", task.getResult());
-        }
-        if (Objects.equals(rawResponseEntity.getStatus(), "Failed")) {
+        if (rawResponseEntity.getCode() != 200) {
+            // 服务端错误
             task.setStatus("Failed");
-            task.setResult(rawResponseEntity.getData());
             task.setEndTime(new Timestamp(System.currentTimeMillis()));
             taskRepository.save(task);
             interfaceRepository.decreaseCurThreads(anInterface.get().getId());
-            return new MyResponseEntity(500, "Failed", task.getResult());
+            return new MyResponseEntity(500, "Failed to run task " + taskId, rawResponseEntity.getData());
         }
-        return new MyResponseEntity(201, "Running", null);
+        // 任务被正常执行了
+        task.setResult(rawResponseEntity.getData());
+        task.setEndTime(new Timestamp(System.currentTimeMillis()));
+        try {
+            JSONObject jsonObject = new JSONObject(rawResponseEntity.getData());
+            task.setStatus(jsonObject.getString("status"));
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+        taskRepository.save(task);
+
+        interfaceRepository.decreaseCurThreads(anInterface.get().getId());
+        return new MyResponseEntity(200, task.getStatus(), task.getResult());
     }
 
 }
