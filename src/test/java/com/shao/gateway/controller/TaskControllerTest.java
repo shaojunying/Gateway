@@ -117,6 +117,6 @@ class TaskControllerTest {
         System.out.println("responseEntity = " + responseEntity);
         assertEquals(500, responseEntity.getCode());
         assertEquals("Failed to run task " + taskId, responseEntity.getMessage());
-        assertNull(responseEntity.getData());
+        assertEquals("{ \"status\": \"Failed\" }", responseEntity.getData());
     }
 }
